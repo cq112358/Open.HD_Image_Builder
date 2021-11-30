@@ -20,11 +20,11 @@ if [[ "${OS}" == "raspbian" ]]; then
     apt-mark hold firmware-atheros || exit 1
     apt purge firmware-atheros || exit 1
     apt -yq install firmware-misc-nonfree || exit 1
-    apt-mark hold raspberrypi-kernel
+    #apt-mark hold raspberrypi-kernel
     # Install libraspberrypi-dev before apt-get update
     DEBIAN_FRONTEND=noninteractive apt-get -yq install libraspberrypi-doc libraspberrypi-dev libraspberrypi-dev libraspberrypi-bin libraspberrypi0 || exit 1
-    apt-mark hold libraspberrypi-dev libraspberrypi-bin libraspberrypi0 libraspberrypi-doc
-    apt purge raspberrypi-kernel
+    #apt-mark hold libraspberrypi-dev libraspberrypi-bin libraspberrypi0 libraspberrypi-doc
+    #apt purge raspberrypi-kernel
     PLATFORM_PACKAGES=""
 fi
 
