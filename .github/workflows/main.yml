@@ -1,4 +1,4 @@
-name: Image build on event
+name: Current Tester
 
 on:
   push:
