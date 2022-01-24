@@ -1,4 +1,4 @@
-name: Current Tester
+name: Manual
 
 on:
   workflow_dispatch:
