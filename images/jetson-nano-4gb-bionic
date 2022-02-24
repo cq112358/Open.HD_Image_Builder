@@ -1,8 +1,11 @@
-BASE_IMAGE_URL="https://developer.download.nvidia.com/embedded/L4T/r32_Release_v6.1/Jeston_Nano"
-BASE_IMAGE="jetson-nano-jp46-sd-card-image.zip"
-BASE_IMAGE_SHA256="202c14ef9bd36da48ffdd157f03699a8c896d5bf5ce65d74971cd81761038f35"
+BASE_IMAGE_URL="https://drive.google.com/file/d/1XtgBq3bgs8orHoWiVf5_HRHq5FgcS4DL/view?usp=sharing"
+BASE_IMAGE="jetson-nano-jp46-fixed.7z"
+BASE_IMAGE_SHA256="dfdd2d22c8bc86e925803ca0b571ac168202521ad9bea4f439723c75f04420d4"
+BASE_Mirror=true
+BASE_IMAGE_Mirror="https://geekymind.de/openhd/"
 OS="ubuntu"
 DISTRO="bionic"
+HAS_CUSTOM_BASE=true
 HAS_CUSTOM_KERNEL=false
 HAVE_BOOT_PART=false
 HAVE_CONF_PART=false

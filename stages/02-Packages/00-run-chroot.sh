@@ -24,7 +24,7 @@ if [[ "${OS}" == "raspbian" ]]; then
     apt-mark hold raspberrypi-kernel
     # Install libraspberrypi-dev before apt-get update
     DEBIAN_FRONTEND=noninteractive apt -yq install libraspberrypi-doc libraspberrypi-dev libraspberrypi-dev libraspberrypi-bin libraspberrypi0 || exit 1
-    apt-mark hold libraspberrypi-dev libraspberrypi-bin libraspberrypi0 libraspberrypi-doc
+    apt-mark hold libraspberrypi-dev libraspberrypi-bin libraspberrypi0 libraspberrypi-doc libcamera-apps-lite libcamera0
     apt purge raspberrypi-kernel
     PLATFORM_PACKAGES=""
 fi
@@ -49,7 +49,7 @@ if [[ "${OS}" == "ubuntu" ]]; then
     sudo cat /etc/apt/sources.list.d/nvidia-l4t-apt-source.list
 
     #remove some nvidia packages... if building from nvidia base image 
-	#gdm isn't used, remove lightdm instead, removed new line in #60
+
     sudo apt remove ubuntu-desktop
     sudo apt remove libreoffice-writer chromium-browser chromium* yelp unity thunderbird rhythmbox nautilus gnome-software
     sudo apt remove ubuntu-artwork ubuntu-sounds ubuntu-wallpapers ubuntu-wallpapers-bionic
@@ -67,11 +67,6 @@ if [[ "${HAS_CUSTOM_KERNEL}" == "true" ]]; then
     PLATFORM_PACKAGES="${PLATFORM_PACKAGES} ${KERNEL_PACKAGE}"
 fi
 
-#echo "-------------------------SHOW sources content-------------------------------"
-
-#sudo cat /etc/apt/sources.list
-#sudo cp /etc/apt/sources.list /etc/apt/sources.list.bak
-
 echo "-------------------------GETTING FIRST UPDATE------------------------------------"
 
 apt update --allow-releaseinfo-change || exit 1  
@@ -82,10 +77,6 @@ apt install -y apt-transport-https curl
 curl -1sLf 'https://dl.cloudsmith.io/public/openhd/openhd-2-1/cfg/gpg/gpg.0AD501344F75A993.key' | apt-key add -
 curl -1sLf 'https://dl.cloudsmith.io/public/openhd/openhd-2-1-testing/cfg/gpg/gpg.58A6C96C088A96BF.key' | apt-key add -
 sudo apt-get install -y apt-utils
-curl -1sLf 'https://dl.cloudsmith.io/public/openhd/openhd-2-1-testing/setup.deb.sh' | sudo -E bash && \
-curl -1sLf 'https://dl.cloudsmith.io/public/openhd/openhd-2-1/setup.deb.sh' | sudo -E bash && \
-apt update
-
 
 echo "deb https://dl.cloudsmith.io/public/openhd/openhd-2-1/deb/${OS} ${DISTRO} main" > /etc/apt/sources.list.d/openhd-2-1.list
 
@@ -102,31 +93,36 @@ echo "-------------------------DONE GETTING SECOND UPDATE-----------------------
 echo "Purge packages that interfer/we dont need..."
 
 PURGE="wireless-regdb cron avahi-daemon curl iptables man-db logrotate"
-#jtop was replaced with jetson-stats, so no need to install it, also replaced kernel headers, since there are no specific tegra ones
 
 export DEBIAN_FRONTEND=noninteractive
 
 echo "install openhd version-${OPENHD_PACKAGE}"
 if [[ "${OS}" == "ubuntu" ]]; then
-    echo "Install some Jetson essential libraries and compile rtl8812au driver from sources"
-    sudo apt install -y git nano python-pip build-essential libelf-dev
+    echo "Install some Jetson essential libraries and patched rtl8812au driver"
+    sudo apt install -y git nano python-pip build-essential libelf-dev rtl8812au=20220125-1 #mercurial Skipping
     sudo -H pip install -U jetson-stats
-    sudo apt-get install linux-headers-4.15.0-166
-    sudo apt-get install linux-headers-4.18.0.25-generic
-    git clone https://github.com/svpcom/rtl8812au.git
-    cd rtl8812au
-    sudo sed -i 's/CONFIG_PLATFORM_I386_PC = y/CONFIG_PLATFORM_I386_PC = n/' Makefile
-    sudo sed -i 's/CONFIG_PLATFORM_ARM_NV_NANO = n/CONFIG_PLATFORM_ARM_NV_NANO = y/' Makefile
-    make KVER=4.9.253-tegra all && make install KVER=4.9.253-tegra all
-    cp -r 88XXau_wfb.ko /lib/modules/4.9.253-tegra/kernel/drivers/net/wireless/realtek/rtl8812au/
-    cd ..
+    cd /lib/modules/4.9.253/kernel/drivers/net/wireless
+    cp -r 88XXau.ko /lib/modules/4.9.253-tegra/kernel/drivers/net/wireless/realtek/rtl8812au/
     cd /lib/modules/4.9.253-tegra/kernel/drivers/net/wireless/realtek/rtl8812au/
     mv rtl8812au.ko rtl8812au.ko.bak
+    mv 88XXau.ko rtl8812au.ko
+    log "Downloading Atheros parched drivers"
+    wget www.nurse.teithe.gr/htc_9271.fw
+    mv /lib/firmware/htc_9271.fw /lib/firmware/htc_9271.fw.bak
+    mv /lib/firmware/ath9k_htc/htc_9271-1.4.0.fw /lib/firmware/ath9k_htc/htc_9271-1.4.0.fw.bak
+    cp htc_9271.fw /lib/firmware/
+    cp htc_9271.fw /lib/firmware/ath9k_htc/
+    mv /lib/firmware/ath9k_htc/htc_9271.fw /lib/firmware/ath9k_htc/htc_9271-1.4.0.fw
     echo '#!/bin/bash' >> /usr/local/bin/video.sh && printf "\nsudo nvpmodel -m 0 | sudo jetson_clocks\nsudo iw wlan0 set freq 5320\nsudo iw wlan0 set txpower fixed 3100\necho \"nameserver 1.1.1.1\" > /etc/resolv.conf" >> /usr/local/bin/video.sh
     printf "[Unit]\nDescription=\"Jetson Nano clocks\"\nAfter=openhdinterface.service\n[Service]\nExecStart=/usr/local/bin/video.sh\n[Install]\nWantedBy=multi-user.target\nAlias=video.service" >> /etc/systemd/system/video.service
     sudo chmod u+x /usr/local/bin/video.sh
     sudo systemctl enable networking.service
     sudo systemctl enable video.service
+    wget https://www.arducam.com/downloads/Jetson/Camera_overrides.tar.gz
+    tar zxvf Camera_overrides.tar.gz
+    cp camera_overrides.isp /var/nvidia/nvcam/settings/
+    chmod 664 /var/nvidia/nvcam/settings/camera_overrides.isp
+    chown root:root /var/nvidia/nvcam/settings/camera_overrides.isp
 fi
 
 apt update && apt upgrade -y
@@ -134,6 +130,16 @@ apt -y --no-install-recommends install \
 ${OPENHD_PACKAGE} \
 ${PLATFORM_PACKAGES} \
 ${GNUPLOT} || exit 1
+apt install -y libsodium-dev libpcap-dev git nano build-essential
+git clone https://github.com/Consti10/wifibroadcast.git
+cd wifibroadcast
+make
+mv /usr/local/bin/wfb_tx /usr/local/bin/wfb_tx.bak
+mv /usr/local/bin/wfb_rx /usr/local/bin/wfb_rx.bak
+mv /usr/local/bin/wfb_keygen /usr/local/bin/wfb_keygen.bak
+cp wfb_tx /usr/local/bin/
+cp wfb_rx /usr/local/bin/
+cp wfb_keygen /usr/local/bin/
 
 apt -yq purge ${PURGE} || exit 1
 apt -yq clean || exit 1
